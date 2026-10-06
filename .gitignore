@@ -1,0 +1,32 @@
+# Secrets and local env. Never commit credentials.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+id_ecdsa
+secrets/
+credentials.json
+
+# OS and editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+.directory
+
+# Local run artifacts
+*.log
+tmp/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/

@@ -1,0 +1,92 @@
+# Atom MVP policy stub. Deny-by-default network.
+#
+# Schema:
+#   https://docs.nvidia.com/openshell/how-it-works/policies/schema
+# Default policy (no network rules means all outbound network is denied):
+#   https://docs.nvidia.com/openshell/how-it-works/policies/default-policy
+# Apply at create time (filesystem and Landlock are startup-only):
+#   openshell sandbox create --name atom-mvp --policy policy/mvp-deny-default.yaml
+#   https://docs.nvidia.com/openshell/how-it-works/policies/manage-policies
+#
+# This file intentionally has no `network_policies` entries. That is the
+# same stance as OpenShell's restrictive default: nothing is allowlisted,
+# so egress is denied. Attached providers can still add rules to the
+# effective policy; this stub does not attach any.
+#
+# Do not put API keys in this file.
+
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  # Paths match the documented default filesystem set.
+  read_only:
+    - /bin
+    - /usr
+    - /lib
+    - /proc
+    - /dev/urandom
+    - /etc
+    - /var/log
+  read_write:
+    - /tmp
+    - /dev/null
+    # Desktop extras confirmed on the first OpenShell boot: Xvfb's keymap
+    # compiler writes under /var/lib/xkb, and the X socket lives under /tmp.
+    # /home/agent is the image WORKDIR (uid 1500).
+    # https://docs.nvidia.com/openshell/how-it-works/policies/schema
+    - /dev/shm
+    - /home/agent
+    - /var/lib/xkb
+    # xterm allocates a pty here and also opens /dev/tty. Without these
+    # paths Landlock returns EACCES ("not enough ptys" / "open ttydev").
+    - /dev/pts
+    - /dev/ptmx
+    - /dev/tty
+
+landlock:
+  compatibility: best_effort
+
+# `process` is omitted. Docker and Podman then use the image USER
+# (agent, uid 1500). Ubuntu 24.04 already uses uid 1000 for `ubuntu`.
+# An explicit run_as_user must be the string "sandbox" or a numeric uid,
+# not a username.
+# https://docs.nvidia.com/openshell/how-it-works/policies/schema
+
+# ---------------------------------------------------------------------------
+# Placeholders. Leave commented until the spike confirms the real host,
+# port, protocol, access preset, and binary path inside the image.
+# Binary path must be the real executable (scripts show up as their
+# interpreter). Example shape from:
+#   https://docs.nvidia.com/openshell/tutorials/first-network-policy
+#   https://docs.nvidia.com/openshell/how-it-works/policies/manage-policies
+#
+# network_policies:
+#   model_api:
+#     name: model-api
+#     endpoints:
+#       - host: api.example-model.invalid
+#         port: 443
+#         protocol: rest
+#         enforcement: enforce
+#         access: read-write
+#     binaries:
+#       - path: /usr/local/bin/agent
+#   bridge:
+#     name: chat-bridge
+#     endpoints:
+#       - host: bridge.example.invalid
+#         port: 443
+#         protocol: rest
+#         enforcement: enforce
+#         access: read-write
+#     binaries:
+#       - path: /usr/local/bin/agent
+#
+# After the sandbox exists, prefer an incremental add over editing guesses:
+#   openshell policy update atom-mvp \
+#     --rule-name model_api \
+#     --binary /usr/local/bin/agent \
+#     --add-endpoint api.example-model.invalid:443:read-write:rest:enforce \
+#     --wait
+# ---------------------------------------------------------------------------
