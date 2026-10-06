@@ -154,15 +154,15 @@ The narrowed MVP is the spike in section 4, not more architecture writing.
 
 Immediate work on a single machine:
 
-1. Install OpenShell and confirm `openshell status`.
-2. `docker build -t atom-desktop:latest sandbox`, then `./scripts/up.sh`, and open the printed desktop URL.
-3. Put one agent in that sandbox and add the chat glue. Only then fill in the model-API and bridge comments in `policy/mvp-deny-default.yaml`.
+1. Install OpenShell and confirm `openshell status`. Done on 0.1.2; notes in [spike-notes.md](spike-notes.md).
+2. `docker build -t atom-desktop:latest sandbox`, then `./scripts/up.sh`, and open the printed desktop URL. Done for the Docker driver.
+3. Put one agent in that sandbox and add the chat glue. Only then fill in the model-API and bridge comments in `policy/mvp-deny-default.yaml`. Blocked until a model provider is attached.
 
 ## 9. Repository scaffold
 
 | Piece | File | Notes |
 | --- | --- | --- |
-| Desktop image | [sandbox/Dockerfile](../sandbox/Dockerfile), [sandbox/entrypoint.sh](../sandbox/entrypoint.sh) | Xvfb + Openbox + xterm + Falkon + x11vnc + websockify. Ports 5900 and 6080 on loopback. User `agent` uid 1000. |
+| Desktop image | [sandbox/Dockerfile](../sandbox/Dockerfile), [sandbox/entrypoint.sh](../sandbox/entrypoint.sh) | Xvfb + Openbox + xterm + Falkon + x11vnc + websockify. Ports 5900 and 6080 on loopback. User `agent` uid 1500. |
 | Policy stub | [policy/mvp-deny-default.yaml](../policy/mvp-deny-default.yaml) | `version: 1`, default filesystem paths, no `network_policies`. Placeholders are comments. |
 | Up / down | [scripts/up.sh](../scripts/up.sh), [scripts/down.sh](../scripts/down.sh) | Documented `sandbox create`, `service expose`, `sandbox delete`. Exit if the CLI or gateway is missing. |
 

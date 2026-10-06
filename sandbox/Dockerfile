@@ -43,11 +43,28 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # OpenShell rejects a root image USER unless the create-time policy sets a
-# non-root run_as_user. This image declares uid 1000 and the MVP policy omits
-# `process`, so Docker/Podman use this USER.
+# non-root run_as_user. Ubuntu 24.04 already owns uid/gid 1000 (`ubuntu`),
+# so the desktop user is a separate unprivileged account. The MVP policy
+# omits `process`, and Docker/Podman then use this USER.
 # https://docs.nvidia.com/openshell/how-it-works/policies/default-policy
-RUN groupadd --gid 1000 agent \
-    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash agent
+RUN groupadd --gid 1500 agent \
+    && useradd --uid 1500 --gid 1500 --create-home --shell /bin/bash agent \
+    && mkdir -p /tmp/.X11-unix /var/lib/xkb \
+    && chmod 1777 /tmp/.X11-unix /var/lib/xkb
+
+COPY nopriv.c atom-banner.c /tmp/atom-build/
+# Compile the setuid workaround and a tiny labeled X window, then drop the
+# compiler. OpenShell returns EPERM for uid/gid syscalls even when the ids
+# do not change. The policy schema has no syscall allow. libX11 stays
+# because Xvfb already needs it.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev libx11-dev \
+    && gcc -shared -fPIC -O2 -o /usr/local/lib/libopenshell-nopriv.so /tmp/atom-build/nopriv.c -ldl \
+    && gcc -O2 -o /usr/local/bin/atom-banner /tmp/atom-build/atom-banner.c -lX11 \
+    && rm -rf /tmp/atom-build \
+    && apt-get purge -y gcc libc6-dev libx11-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY entrypoint.sh /usr/local/bin/atom-desktop-entrypoint
 RUN chmod 755 /usr/local/bin/atom-desktop-entrypoint

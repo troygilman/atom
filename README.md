@@ -7,13 +7,13 @@ Atom is a minimal agent environment on [NVIDIA OpenShell](https://github.com/NVI
 
 Multi-tenant gateways, connectors, hibernation, billing, and the rest of a product platform are out of scope. The design is in [docs/architecture.md](docs/architecture.md).
 
-This repository is a scaffold. The image and scripts are a starting point, not a verified end-to-end demo. OpenShell was not installed in the environment that added these files. Command lines below follow the public docs as of 2026-10-06 and are marked where they still need a local check.
+The desktop path was run on OpenShell 0.1.2 (Docker driver) on 2026-10-06. Commands that worked, and what is still blocked, are in [docs/spike-notes.md](docs/spike-notes.md). Chat is not built: there was no model provider or API key.
 
 ## What is in the tree
 
 | Path | Role |
 | --- | --- |
-| [sandbox/Dockerfile](sandbox/Dockerfile) | Desktop image: Xvfb, Openbox, xterm, Falkon, x11vnc, noVNC. `DISPLAY=:0`. noVNC on `127.0.0.1:6080`. Non-root user `agent` (uid 1000). |
+| [sandbox/Dockerfile](sandbox/Dockerfile) | Desktop image: Xvfb, Openbox, xterm, Falkon, x11vnc, noVNC. `DISPLAY=:0`. noVNC on `127.0.0.1:6080`. Non-root user `agent` (uid 1500). |
 | [sandbox/entrypoint.sh](sandbox/entrypoint.sh) | Starts that stack and stays in the foreground on websockify. |
 | [policy/mvp-deny-default.yaml](policy/mvp-deny-default.yaml) | OpenShell policy stub. No network rules, so egress is deny-by-default. Model API and chat-bridge allowlists are comments only. |
 | [scripts/up.sh](scripts/up.sh) | Creates one sandbox from the image, exposes noVNC, prints the desktop service and the chat gap. |
@@ -39,7 +39,7 @@ curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | 
 openshell status
 ```
 
-`openshell status` must succeed before `scripts/up.sh`. The script does not register a gateway. Install docs and the sandbox overview use different sample gateway URLs (`https://127.0.0.1:17670` versus `http://127.0.0.1:18080`), so this repo does not pick one.
+`openshell status` must succeed before `scripts/up.sh`. The script does not register a gateway. The installer default that worked is `https://127.0.0.1:17670` (mTLS). The sandbox overview's `http://127.0.0.1:18080` sample is a different port. A host with no systemd user manager does not get a gateway from the installer; start one as in [docs/spike-notes.md](docs/spike-notes.md).
 
 ### 2. Build the desktop image
 
@@ -49,13 +49,9 @@ openshell status
 docker build -t atom-desktop:latest sandbox
 ```
 
-Podman gateway (verify the `localhost/` prefix against your engine):
+The verified driver was Docker, and the image name it accepted was `atom-desktop:latest` with no `localhost/` prefix. Podman was not used.
 
-```sh
-podman build -t localhost/atom-desktop:latest sandbox
-```
-
-Ubuntu 24.04's `chromium-browser` and `firefox` packages are snap stubs, so the image installs Falkon instead. Package names were checked against Ubuntu 24.04 apt metadata. The image itself has not been built in this scaffold change.
+Ubuntu 24.04's `chromium-browser` and `firefox` packages are snap stubs, so the image installs Falkon instead.
 
 ### 3. Create the sandbox and open the desktop
 
@@ -79,14 +75,15 @@ openshell service get atom-mvp desktop
 
 Overrides: `ATOM_SANDBOX_NAME`, `ATOM_IMAGE`, `ATOM_POLICY`, `ATOM_NOVNC_PORT`.
 
-Open the URL `service get` prints. The noVNC page in the image is `/vnc.html`. Whether the gateway URL already includes that path is unverified. The VNC session is view-only and bound to loopback, with no password baked into the image.
+Open the viewer URL the script prints. On the verified gateway that was `http://default--atom-mvp--desktop.openshell.localhost:17670/vnc.html`. The service base URL does not include `/vnc.html`. The VNC session is view-only and bound to loopback, with no password baked into the image.
 
 ### 4. Chat
 
-There is no chat URL yet. After an agent is added, the documented attach command is:
+There is no chat URL yet, and no model API key was available. OpenShell takes model credentials through a provider (`openshell provider`, then `sandbox create --provider`), not a secret in this repo. Until that exists, the stand-in is:
 
 ```sh
 openshell sandbox connect atom-mvp
+openshell sandbox exec --name atom-mvp --no-tty -- echo atom-desktop
 ```
 
 ### 5. Tear down
@@ -109,8 +106,8 @@ That runs `openshell sandbox delete atom-mvp`. Delete can return before cleanup 
 
 ## Next spike
 
-1. Install OpenShell and confirm `openshell status`.
-2. Build `atom-desktop:latest` and confirm noVNC shows the Openbox desktop.
-3. Add one agent process in the same sandbox and a thin chat bridge. Then uncomment a real model-API allowlist in the policy and check that a random host is still denied.
+Desktop and noVNC are running. See [docs/spike-notes.md](docs/spike-notes.md).
 
-Do not add tenancy, connectors, or hibernation until those three work.
+Still open: add one agent process in the same sandbox and a thin chat bridge. That needs a model provider attached to the sandbox. Then uncomment a real model-API allowlist in the policy and check that a random host is still denied.
+
+Do not add tenancy, connectors, or hibernation until chat works.
